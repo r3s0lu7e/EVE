@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class EveSync extends Command
 {
-    protected $signature = 'eve:sync {--character= : Only sync this character id}';
+    protected $signature = 'eve:sync {--character= : Only sync this character id} {--due : Skip characters whose ESI cache window has not expired yet}';
 
     protected $description = 'Pull wallet transactions/journal from ESI and rebuild realized-profit data';
 
@@ -16,6 +16,12 @@ class EveSync extends Command
     {
         $characters = Character::query()
             ->when($this->option('character'), fn ($q, $id) => $q->where('character_id', $id))
+            // --due: only characters whose ESI Expires has passed (or were never
+            // synced), so we fetch the moment fresh data is available — no sooner.
+            ->when($this->option('due'), fn ($q) => $q->where(
+                fn ($q) => $q->whereNull('wallet_expires_at')
+                    ->orWhere('wallet_expires_at', '<=', now())
+            ))
             ->get();
 
         if ($characters->isEmpty()) {
