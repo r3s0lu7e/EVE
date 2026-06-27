@@ -16,11 +16,13 @@ class EveSync extends Command
     {
         $characters = Character::query()
             ->when($this->option('character'), fn ($q, $id) => $q->where('character_id', $id))
-            // --due: only characters whose ESI Expires has passed (or were never
-            // synced), so we fetch the moment fresh data is available — no sooner.
+            // --due: only characters past their randomized next-sync time (or
+            // never synced). wallet_next_sync_at is the ESI Expires plus a small
+            // random jitter, so we fetch just after fresh data is published —
+            // spread off the shared cache boundary rather than stampeding it.
             ->when($this->option('due'), fn ($q) => $q->where(
-                fn ($q) => $q->whereNull('wallet_expires_at')
-                    ->orWhere('wallet_expires_at', '<=', now())
+                fn ($q) => $q->whereNull('wallet_next_sync_at')
+                    ->orWhere('wallet_next_sync_at', '<=', now())
             ))
             ->get();
 

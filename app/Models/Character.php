@@ -22,6 +22,7 @@ class Character extends Model
         'last_synced_at' => 'datetime',
         'wallet_as_of' => 'datetime',
         'wallet_expires_at' => 'datetime',
+        'wallet_next_sync_at' => 'datetime',
     ];
 
     public function transactions(): HasMany

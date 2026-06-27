@@ -20,6 +20,17 @@ use Illuminate\Support\Facades\Log;
  */
 class EveSyncService
 {
+    /**
+     * Random jitter (seconds) added to the ESI cache expiry to pick each
+     * character's next-sync time. ESI publishes wallet data on round clock
+     * boundaries, so polling exactly at expiry stampedes the API and can read
+     * the still-stale copy before it regenerates. A few seconds to a couple of
+     * minutes is negligible against the 1-hour cache and spreads the load.
+     */
+    private const SYNC_JITTER_MIN = 20;
+
+    private const SYNC_JITTER_MAX = 120;
+
     public function __construct(
         private EsiClient $esi,
         private ProfitEngine $engine,
@@ -40,10 +51,14 @@ class EveSyncService
         $matchCount = $this->engine->rebuildForCharacter($character);
 
         $cache = $this->esi->lastJournalCache();
+        $expires = $cache['expires'] ?? null;
         $character->forceFill([
             'last_synced_at' => now(),
             'wallet_as_of' => $cache['as_of'] ?? null,
-            'wallet_expires_at' => $cache['expires'] ?? null,
+            'wallet_expires_at' => $expires,
+            'wallet_next_sync_at' => $expires
+                ? $expires->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX))
+                : null,
         ])->save();
 
         return [
