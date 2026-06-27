@@ -141,6 +141,9 @@ class Dashboard extends Component
 
         $query = $this->baseQuery()
             ->selectRaw("$labelSelect as label")
+            // The raw group key (type_id for product grouping) so the table can
+            // link each product row to its detail page.
+            ->selectRaw("$groupCol as group_key")
             ->selectRaw('SUM(net_profit) as net_profit')
             ->selectRaw('SUM(gross_profit) as gross_profit')
             ->selectRaw('SUM(sales_tax_alloc + broker_fee_alloc) as fees')

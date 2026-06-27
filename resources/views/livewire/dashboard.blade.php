@@ -302,7 +302,17 @@
                 <tbody class="divide-y divide-slate-800/60">
                     @forelse($rows as $row)
                         <tr wire:key="row-{{ $loop->index }}" class="transition-colors hover:bg-eve-400/[.04]">
-                            <td class="px-4 py-2.5 text-slate-200">{{ $row->label }}</td>
+                            <td class="px-4 py-2.5 text-slate-200">
+                                @if($groupBy === 'product')
+                                    <a href="{{ route('product.show', $row->group_key) }}" wire:navigate
+                                       class="inline-flex items-center gap-1.5 text-eve-300 transition-colors hover:text-eve-400 hover:underline">
+                                        {{ $row->label }}
+                                        <svg class="h-3 w-3 text-slate-600" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </a>
+                                @else
+                                    {{ $row->label }}
+                                @endif
+                            </td>
                             <td class="num px-4 py-2.5 text-right font-medium {{ $row->net_profit >= 0 ? 'text-emerald-400' : 'text-rose-400' }}">{{ $isk($row->net_profit) }}</td>
                             <td class="num px-4 py-2.5 text-right text-slate-300">{{ $isk($row->gross_profit) }}</td>
                             <td class="num px-4 py-2.5 text-right text-amber-400/90">{{ $isk($row->fees) }}</td>

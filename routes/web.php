@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\EveAuthController;
 use App\Livewire\Dashboard;
+use App\Livewire\ProductDetail;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', Dashboard::class)->name('dashboard');
+Route::get('/product/{typeId}', ProductDetail::class)->name('product.show');
 
 Route::get('/auth/eve/redirect', [EveAuthController::class, 'redirect'])->name('eve.redirect');
 Route::get('/auth/eve/callback', [EveAuthController::class, 'callback'])->name('eve.callback');

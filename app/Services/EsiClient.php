@@ -171,6 +171,60 @@ class EsiClient
     }
 
     /* ----------------------------------------------------------------- *
+     | Market (public)                                                   |
+     * ----------------------------------------------------------------- */
+
+    /**
+     * Daily market history for a type in a region: each row has
+     * {date, average, highest, lowest, order_count, volume}. ESI updates this
+     * once a day. No auth required.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function marketHistory(int $regionId, int $typeId): array
+    {
+        $response = $this->backoff(
+            fn () => Http::acceptJson()->get(self::BASE."/markets/{$regionId}/history/", ['type_id' => $typeId])
+        );
+
+        return $response->successful() ? $response->json() : [];
+    }
+
+    /**
+     * Open market orders for a type in a region (both buy and sell), across all
+     * pages. Each row has {is_buy_order, price, volume_remain, location_id, ...}.
+     * No auth required.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function marketOrders(int $regionId, int $typeId): array
+    {
+        $path = "/markets/{$regionId}/orders/";
+        $orders = [];
+        $page = 1;
+
+        do {
+            $response = $this->backoff(
+                fn () => Http::acceptJson()->get(self::BASE.$path, [
+                    'type_id' => $typeId,
+                    'order_type' => 'all',
+                    'page' => $page,
+                ])
+            );
+
+            if ($response->failed()) {
+                break;
+            }
+
+            $orders = array_merge($orders, $response->json());
+            $pages = (int) ($response->header('X-Pages') ?: 1);
+            $page++;
+        } while ($page <= $pages && $page <= 10);
+
+        return $orders;
+    }
+
+    /* ----------------------------------------------------------------- *
      | Internals                                                         |
      * ----------------------------------------------------------------- */
 
