@@ -11,7 +11,21 @@
     $sellFeePct = $f($this->sellBrokerFee) + $f($this->sccSurcharge) + $f($this->salesTax);
 @endphp
 
-<div wire:key="calculator" x-data="{ showSettings: true }" x-on:focus.capture="$event.target.matches('input') && $event.target.select()" class="mx-auto max-w-xl space-y-4">
+<div wire:key="calculator"
+     x-data="{
+         showSettings: true,
+         bump(e, step) {
+             const el = e.target;
+             if (e.shiftKey) step *= 10;        // coarse adjust
+             const dir = e.deltaY < 0 ? 1 : -1;  // scroll up = increase
+             let n = parseFloat(String(el.value).replace(/\s/g, '').replace(',', '.')) || 0;
+             n = Math.max(0, Math.round((n + dir * step) * 100) / 100);
+             el.value = n;
+             el.dispatchEvent(new Event('input', { bubbles: true }));
+         },
+     }"
+     x-on:focus.capture="$event.target.matches('input') && $event.target.select()"
+     class="mx-auto max-w-xl space-y-4">
     <div class="flex items-baseline justify-between">
         <h1 class="text-lg font-semibold tracking-tight text-slate-100">Margin Calculator</h1>
         <span class="text-xs text-slate-500">Buy {{ rtrim(rtrim(number_format($buyFeePct, 2), '0'), '.') }}% · Sell {{ rtrim(rtrim(number_format($sellFeePct, 2), '0'), '.') }}%</span>
@@ -23,12 +37,14 @@
             <label for="buyPrice" class="block text-xs font-medium text-slate-400">Buy price</label>
             <input id="buyPrice" type="text" inputmode="decimal" autocomplete="off"
                    x-ref="buy" x-init="$nextTick(() => $refs.buy.focus())"
+                   x-on:wheel.prevent="bump($event, 1000)" title="Scroll to adjust · Shift = ×10"
                    wire:model.live.debounce.250ms="buyPrice" placeholder="509 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
         <div>
             <label for="sellPrice" class="block text-xs font-medium text-slate-400">Sell price</label>
             <input id="sellPrice" type="text" inputmode="decimal" autocomplete="off"
+                   x-on:wheel.prevent="bump($event, 1000)" title="Scroll to adjust · Shift = ×10"
                    wire:model.live.debounce.250ms="sellPrice" placeholder="824 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
@@ -81,7 +97,9 @@
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
                     <label for="quantity" class="block text-xs font-medium text-slate-400">Quantity</label>
-                    <input id="quantity" type="text" inputmode="numeric" wire:model.live.debounce.300ms="quantity"
+                    <input id="quantity" type="text" inputmode="numeric"
+                           x-on:wheel.prevent="bump($event, 1)" title="Scroll to adjust · Shift = ×10"
+                           wire:model.live.debounce.300ms="quantity"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
                 <div>
