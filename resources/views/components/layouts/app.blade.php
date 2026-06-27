@@ -130,6 +130,7 @@
                                 ['Overview', 'dashboard', request()->routeIs('dashboard')],
                                 ['Products', 'products.index', request()->routeIs('products.index') || request()->routeIs('product.show')],
                                 ['Assets', 'assets.index', request()->routeIs('assets.index')],
+                                ['Calculator', 'calculator', request()->routeIs('calculator')],
                             ];
                         @endphp
                         @foreach($nav as [$label, $routeName, $active])
