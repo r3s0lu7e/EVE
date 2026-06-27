@@ -46,14 +46,16 @@
             <input id="buyPrice" type="text" inputmode="decimal" autocomplete="off"
                    x-ref="buy" x-init="$el.value = fmt($el.value); $nextTick(() => $refs.buy.focus())"
                    x-on:input="group($event.target)"
+                   x-on:keydown.tab.prevent="$refs.sell.focus()"
                    wire:model.live.debounce.250ms="buyPrice" placeholder="509 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
         <div>
             <label for="sellPrice" class="block text-xs font-medium text-slate-400">Sell price</label>
             <input id="sellPrice" type="text" inputmode="decimal" autocomplete="off"
-                   x-init="$el.value = fmt($el.value)"
+                   x-ref="sell" x-init="$el.value = fmt($el.value)"
                    x-on:input="group($event.target)"
+                   x-on:keydown.tab.prevent="$refs.buy.focus()"
                    wire:model.live.debounce.250ms="sellPrice" placeholder="824 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
@@ -94,7 +96,7 @@
 
     {{-- Settings & breakdown: configured once, then forgotten --}}
     <div class="rounded-xl border border-slate-800/80 bg-space-850/50">
-        <button type="button" @click="showSettings = !showSettings"
+        <button type="button" tabindex="-1" @click="showSettings = !showSettings"
                 class="flex w-full items-center justify-between px-5 py-3 text-sm text-slate-300 hover:text-slate-100">
             <span class="font-medium">Settings &amp; breakdown</span>
             <svg class="h-4 w-4 transition-transform" :class="showSettings && 'rotate-180'" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -106,28 +108,28 @@
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
                     <label for="quantity" class="block text-xs font-medium text-slate-400">Quantity</label>
-                    <input id="quantity" type="text" inputmode="numeric"
+                    <input id="quantity" type="text" inputmode="numeric" tabindex="-1"
                            wire:model.live.debounce.300ms="quantity"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
                 <div>
                     <label for="buyBrokerFee" class="block text-xs font-medium text-slate-400">Buy broker %</label>
-                    <input id="buyBrokerFee" type="text" inputmode="decimal" wire:model.live.debounce.300ms="buyBrokerFee"
+                    <input id="buyBrokerFee" type="text" inputmode="decimal" tabindex="-1" wire:model.live.debounce.300ms="buyBrokerFee"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
                 <div>
                     <label for="sellBrokerFee" class="block text-xs font-medium text-slate-400">Sell broker %</label>
-                    <input id="sellBrokerFee" type="text" inputmode="decimal" wire:model.live.debounce.300ms="sellBrokerFee"
+                    <input id="sellBrokerFee" type="text" inputmode="decimal" tabindex="-1" wire:model.live.debounce.300ms="sellBrokerFee"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
                 <div>
                     <label for="sccSurcharge" class="block text-xs font-medium text-slate-400">SCC %</label>
-                    <input id="sccSurcharge" type="text" inputmode="decimal" wire:model.live.debounce.300ms="sccSurcharge"
+                    <input id="sccSurcharge" type="text" inputmode="decimal" tabindex="-1" wire:model.live.debounce.300ms="sccSurcharge"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
                 <div>
                     <label for="salesTax" class="block text-xs font-medium text-slate-400">Sales tax %</label>
-                    <input id="salesTax" type="text" inputmode="decimal" wire:model.live.debounce.300ms="salesTax"
+                    <input id="salesTax" type="text" inputmode="decimal" tabindex="-1" wire:model.live.debounce.300ms="salesTax"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
             </div>
