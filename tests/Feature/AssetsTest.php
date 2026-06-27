@@ -21,7 +21,7 @@ class AssetsTest extends TestCase
 
         Livewire::test(Assets::class)
             ->assertSee('Total net worth')
-            ->assertSee('16,000.00') // assets 11,000 + wallet 5,000
+            ->assertSee('19,000.00') // assets 11,000 + sell 2,000 + escrow 1,000 + wallet 5,000
             ->assertSee('5,000.00')  // wallet breakdown
             ->assertSee('Tritanium')
             ->assertSee('PLEX');
@@ -40,7 +40,7 @@ class AssetsTest extends TestCase
             ->assertSee('types/44992/icon')   // PLEX row present
             ->assertDontSee('types/34/icon')  // Tritanium row filtered out
             // Total stays the full net worth, not just the filtered row.
-            ->assertSee('16,000.00');
+            ->assertSee('19,000.00');
     }
 
     public function test_basis_toggle_switches_price_basis(): void
@@ -78,8 +78,10 @@ class AssetsTest extends TestCase
                 ['type_id' => 44992, 'name' => 'PLEX', 'group_name' => 'Token', 'quantity' => 1, 'unit_price' => 1000.0, 'value' => 1000.0],
             ],
             'assets_value' => 11000.0,
+            'sell_orders' => 2000.0,
+            'escrow' => 1000.0,
             'wallet' => 5000.0,
-            'total' => 16000.0,
+            'total' => 19000.0,
             'items' => 1001,
             'types' => 2,
             'unpriced' => 0,

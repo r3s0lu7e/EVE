@@ -30,22 +30,26 @@ class AssetService
      *  - 'buy'   → highest buy (liquidation value)
      *  - 'split' → midpoint of the two
      *
-     * `total` is the full net worth: priced assets plus liquid wallet ISK.
+     * `total` is the full net worth: priced assets, liquid wallet ISK, the value
+     * of items listed in sell orders, and ISK locked in buy-order escrow.
      *
-     * Each call also records a Tracker snapshot (valued at Jita sell, so the
-     * history stays consistent whatever basis is on screen): at most hourly,
+     * Each call also records a Tracker snapshot (assets valued at Jita sell, so
+     * the history stays consistent whatever basis is on screen): at most hourly,
      * and only when the value has moved — unless $forceSnapshot is set, which a
      * manual refresh uses to capture the change immediately.
      *
      * @return array{
      *   rows: array<int,array{type_id:int,name:string,group_name:?string,quantity:int,unit_price:float,value:float}>,
-     *   assets_value: float, wallet: float, total: float, items: int, types: int, unpriced: int
+     *   assets_value: float, sell_orders: float, escrow: float, wallet: float,
+     *   total: float, items: int, types: int, unpriced: int
      * }
      */
     public function valuation(Character $character, string $basis = 'sell', bool $forceSnapshot = false): array
     {
         $wallet = $this->cachedWalletBalance($character);
         $assets = $this->cachedAssets($character);
+        [$sellOrders, $escrow] = $this->orderValues($character);
+        $market = $sellOrders + $escrow;
 
         // Aggregate quantity per type. Containers/ships appear as their own type
         // rows here, and their contents appear as separate rows, so summing the
@@ -57,9 +61,9 @@ class AssetService
         }
 
         if (empty($byType)) {
-            $this->recordSnapshot($character, $wallet, 0.0, $wallet, $forceSnapshot);
+            $this->recordSnapshot($character, $wallet + $market, 0.0, $sellOrders, $escrow, $wallet, $forceSnapshot);
 
-            return ['rows' => [], 'assets_value' => 0.0, 'wallet' => $wallet, 'total' => $wallet, 'items' => 0, 'types' => 0, 'unpriced' => 0];
+            return ['rows' => [], 'assets_value' => 0.0, 'sell_orders' => $sellOrders, 'escrow' => $escrow, 'wallet' => $wallet, 'total' => $wallet + $market, 'items' => 0, 'types' => 0, 'unpriced' => 0];
         }
 
         $typeIds = array_keys($byType);
@@ -98,13 +102,15 @@ class AssetService
 
         usort($rows, fn ($a, $b) => $b['value'] <=> $a['value']);
 
-        $this->recordSnapshot($character, $sellTotal + $wallet, $sellTotal, $wallet, $forceSnapshot);
+        $this->recordSnapshot($character, $sellTotal + $wallet + $market, $sellTotal, $sellOrders, $escrow, $wallet, $forceSnapshot);
 
         return [
             'rows' => $rows,
             'assets_value' => $total,
+            'sell_orders' => $sellOrders,
+            'escrow' => $escrow,
             'wallet' => $wallet,
-            'total' => $total + $wallet,
+            'total' => $total + $wallet + $market,
             'items' => (int) array_sum($byType),
             'types' => count($byType),
             'unpriced' => $unpriced,
@@ -112,20 +118,48 @@ class AssetService
     }
 
     /**
+     * Net-worth components held on the market: the value of items listed in
+     * sell orders (remaining × your listed price) and the ISK locked in
+     * buy-order escrow. Both are real wealth not present in the asset list or
+     * wallet balance.
+     *
+     * @return array{0:float,1:float}  [sellOrdersValue, escrow]
+     */
+    private function orderValues(Character $character): array
+    {
+        $orders = $this->cachedOrders($character);
+
+        $sellOrders = 0.0;
+        $escrow = 0.0;
+
+        foreach ($orders as $order) {
+            if (! empty($order['is_buy_order'])) {
+                $escrow += (float) ($order['escrow'] ?? 0);
+            } else {
+                $sellOrders += (float) ($order['volume_remain'] ?? 0) * (float) ($order['price'] ?? 0);
+            }
+        }
+
+        return [$sellOrders, $escrow];
+    }
+
+    /**
      * Tracker history (oldest → newest) for the character's net worth.
      *
-     * @return array<int,array{t:string,total:float,assets:float,wallet:float}>
+     * @return array<int,array{t:string,total:float,assets:float,sell_orders:float,escrow:float,wallet:float}>
      */
     public function history(Character $character): array
     {
         return AssetSnapshot::where('character_id', $character->character_id)
             ->orderBy('captured_at')
-            ->get(['captured_at', 'total', 'assets_value', 'wallet'])
+            ->get(['captured_at', 'total', 'assets_value', 'sell_orders', 'escrow', 'wallet'])
             ->map(fn (AssetSnapshot $s) => [
                 // ISO8601 UTC; the chart renders points in the viewer's timezone.
                 't' => $s->captured_at->toIso8601String(),
                 'total' => $s->total,
                 'assets' => $s->assets_value,
+                'sell_orders' => $s->sell_orders,
+                'escrow' => $s->escrow,
                 'wallet' => $s->wallet,
             ])
             ->all();
@@ -136,7 +170,7 @@ class AssetService
      * reading. Automatic captures are throttled to roughly hourly; a manual
      * refresh ($force) records the change straight away.
      */
-    private function recordSnapshot(Character $character, float $total, float $assetsValue, float $wallet, bool $force): void
+    private function recordSnapshot(Character $character, float $total, float $assetsValue, float $sellOrders, float $escrow, float $wallet, bool $force): void
     {
         $last = AssetSnapshot::where('character_id', $character->character_id)
             ->latest('captured_at')
@@ -155,16 +189,19 @@ class AssetService
             'character_id' => $character->character_id,
             'total' => round($total, 2),
             'assets_value' => round($assetsValue, 2),
+            'sell_orders' => round($sellOrders, 2),
+            'escrow' => round($escrow, 2),
             'wallet' => round($wallet, 2),
             'captured_at' => now(),
         ]);
     }
 
-    /** Drop the cached asset list + wallet so the next valuation re-fetches from ESI. */
+    /** Drop the cached asset list, wallet + orders so the next valuation re-fetches from ESI. */
     public function refresh(Character $character): void
     {
         Cache::forget($this->assetsCacheKey($character));
         Cache::forget($this->walletCacheKey($character));
+        Cache::forget($this->ordersCacheKey($character));
     }
 
     private function cachedAssets(Character $character): array
@@ -187,6 +224,16 @@ class AssetService
         );
     }
 
+    private function cachedOrders(Character $character): array
+    {
+        // ESI caches character orders for ~1200s; mirror that locally with jitter.
+        return Cache::remember(
+            $this->ordersCacheKey($character),
+            now()->addSeconds(random_int(1200, 1400)),
+            fn () => $this->esi->characterOrders($character)
+        );
+    }
+
     private function assetsCacheKey(Character $character): string
     {
         return "assets:{$character->character_id}";
@@ -195,6 +242,11 @@ class AssetService
     private function walletCacheKey(Character $character): string
     {
         return "assets:wallet:{$character->character_id}";
+    }
+
+    private function ordersCacheKey(Character $character): string
+    {
+        return "assets:orders:{$character->character_id}";
     }
 
     /** Resolve a per-type price for the chosen basis, or null if unpriced. */

@@ -124,6 +124,22 @@ class EsiClient
     }
 
     /* ----------------------------------------------------------------- *
+     | Market orders                                                     |
+     * ----------------------------------------------------------------- */
+
+    /**
+     * The character's open market orders (buy + sell). Each row has
+     * {is_buy_order, price, volume_remain, escrow, type_id, ...}. Requires the
+     * esi-markets.read_character_orders.v1 scope.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function characterOrders(Character $character): array
+    {
+        return $this->authGet($character, "/characters/{$character->character_id}/orders/")->json();
+    }
+
+    /* ----------------------------------------------------------------- *
      | Universe / name resolution                                        |
      * ----------------------------------------------------------------- */
 

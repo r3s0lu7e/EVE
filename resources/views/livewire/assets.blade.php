@@ -79,6 +79,8 @@
                 <p class="num mt-1 text-3xl font-semibold text-eve-300">{{ $isk($valuation['total']) }}<span class="ml-1.5 text-base text-slate-500">ISK</span></p>
                 <p class="mt-1 text-[11px] text-slate-500">
                     Assets <span class="num text-slate-300">{{ $isk($valuation['assets_value']) }}</span>
+                    · Sell orders <span class="num text-slate-300">{{ $isk($valuation['sell_orders']) }}</span>
+                    · Escrow <span class="num text-slate-300">{{ $isk($valuation['escrow']) }}</span>
                     · Wallet <span class="num text-slate-300">{{ $isk($valuation['wallet']) }}</span>
                 </p>
                 @if($valuation['unpriced'] > 0)
@@ -204,10 +206,13 @@
                         series: [
                             { name: 'Total', data: at('total') },
                             { name: 'Assets', data: at('assets') },
+                            { name: 'Sell orders', data: at('sell_orders') },
+                            { name: 'Escrow', data: at('escrow') },
                             { name: 'Wallet', data: at('wallet') },
                         ],
-                        // Total red, Assets green, Wallet blue — familiar from jEveAssets.
-                        colors: ['#fb7185', '#34d399', '#60a5fa'],
+                        // Total red, Assets green, Sell orders cyan, Escrow amber,
+                        // Wallet blue — familiar from jEveAssets.
+                        colors: ['#fb7185', '#34d399', '#38d3ee', '#fbbf24', '#60a5fa'],
                         stroke: { width: 2, curve: 'straight' },
                         fill: { type: 'gradient', gradient: { opacityFrom: 0.20, opacityTo: 0.0, shadeIntensity: 1 } },
                         dataLabels: { enabled: false },

@@ -13,6 +13,8 @@ class AssetSnapshot extends Model
     protected $casts = [
         'total' => 'float',
         'assets_value' => 'float',
+        'sell_orders' => 'float',
+        'escrow' => 'float',
         'wallet' => 'float',
         'captured_at' => 'datetime',
     ];
