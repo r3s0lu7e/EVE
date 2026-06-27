@@ -164,7 +164,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 px-4 py-3">
             <div>
                 <h2 class="text-sm font-medium text-slate-300">Wallet activity</h2>
-                <p class="mt-0.5 text-xs text-slate-500">All journal entries in range — click a type to see each individual fee or credit.</p>
+                <p class="mt-0.5 text-xs text-slate-500">All journal entries in range — click a type to see each individual fee or credit. In/Out exclude market escrow (internal transfers).</p>
             </div>
             <div class="flex items-center gap-4 text-xs">
                 <span class="text-slate-500">In <span class="num font-medium text-emerald-400">{{ $isk($wallet['inflow']) }}</span></span>

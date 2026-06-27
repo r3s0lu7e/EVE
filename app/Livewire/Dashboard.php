@@ -260,7 +260,13 @@ class Dashboard extends Component
         foreach ($entries as $entry) {
             $refType = (string) $entry->ref_type;
             $amount = (float) $entry->amount;
-            $amount >= 0 ? $inflow += $amount : $outflow += $amount;
+
+            // Market escrow moves ISK between the wallet and buy-order escrow — it's
+            // an internal transfer of your own capital, not income or expense. Counting
+            // it would overstate both In (escrow releases) and Out (ISK merely locked).
+            if ($refType !== 'market_escrow') {
+                $amount >= 0 ? $inflow += $amount : $outflow += $amount;
+            }
 
             if (! isset($byType[$refType])) {
                 $byType[$refType] = [
