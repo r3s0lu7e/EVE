@@ -46,6 +46,12 @@ class EsiClient
      | Wallet                                                            |
      * ----------------------------------------------------------------- */
 
+    /** Current wallet balance (liquid ISK) for the character. */
+    public function walletBalance(Character $character): float
+    {
+        return (float) $this->authGet($character, "/characters/{$character->character_id}/wallet/")->json();
+    }
+
     /**
      * One page (up to 2500, newest first) of wallet transactions.
      * Pass $fromId to page backwards in time (transaction ids strictly below it).
@@ -88,6 +94,33 @@ class EsiClient
         } while ($page <= $pages);
 
         return $entries;
+    }
+
+    /* ----------------------------------------------------------------- *
+     | Assets                                                            |
+     * ----------------------------------------------------------------- */
+
+    /**
+     * Full character asset list across all pages. Each row has
+     * {item_id, type_id, quantity, location_id, location_flag, location_type,
+     * is_singleton, ...}. Requires the esi-assets.read_assets.v1 scope.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function assets(Character $character): array
+    {
+        $items = [];
+        $page = 1;
+        $path = "/characters/{$character->character_id}/assets/";
+
+        do {
+            $response = $this->authGet($character, $path, ['page' => $page]);
+            $items = array_merge($items, $response->json());
+            $pages = (int) ($response->header('X-Pages') ?: 1);
+            $page++;
+        } while ($page <= $pages);
+
+        return $items;
     }
 
     /* ----------------------------------------------------------------- *

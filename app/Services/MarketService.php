@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Live market read-model for the product page. Wraps the public ESI market
@@ -15,6 +16,9 @@ class MarketService
 {
     /** The Forge — the region containing Jita, EVE's main trade hub. */
     public const TRADE_HUB_REGION = 10000002;
+
+    /** Fuzzwork's bulk market aggregates endpoint (per-type buy/sell stats). */
+    private const FUZZWORK_AGGREGATES = 'https://market.fuzzwork.co.uk/aggregates/';
 
     public function __construct(private EsiClient $esi)
     {
@@ -82,6 +86,63 @@ class MarketService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Bulk Jita prices for many type ids, sourced from Fuzzwork's market
+     * aggregates (the same kind of bulk price feed jEveAssets uses — one HTTP
+     * call values a whole asset list, unlike the per-type ESI orders above).
+     *
+     * Returns [type_id => ['buy' => float, 'sell' => float]] using the 5%
+     * percentile (highest buys / lowest sells with outlier orders trimmed),
+     * which is more robust for valuation than a single best order. Types with
+     * no market data are omitted. Each type is cached individually so repeat
+     * valuations only fetch newly-seen ids.
+     *
+     * @param  array<int,int>  $typeIds
+     * @return array<int,array{buy:float,sell:float}>
+     */
+    public function bulkPrices(array $typeIds): array
+    {
+        $typeIds = array_values(array_unique(array_map('intval', $typeIds)));
+        $prices = [];
+        $missing = [];
+
+        foreach ($typeIds as $id) {
+            $cached = Cache::get("fuzzwork:price:{$id}");
+            $cached !== null ? $prices[$id] = $cached : $missing[] = $id;
+        }
+
+        // Fetch the misses in chunks to keep the `types` query string sane.
+        foreach (array_chunk($missing, 200) as $chunk) {
+            $response = Http::acceptJson()->get(self::FUZZWORK_AGGREGATES, [
+                'region' => self::TRADE_HUB_REGION,
+                'types' => implode(',', $chunk),
+            ]);
+
+            if ($response->failed()) {
+                continue;
+            }
+
+            $body = $response->json();
+            foreach ($chunk as $id) {
+                $row = $body[(string) $id] ?? null;
+                if (! $row) {
+                    continue;
+                }
+
+                $price = [
+                    'buy' => (float) ($row['buy']['percentile'] ?? 0),
+                    'sell' => (float) ($row['sell']['percentile'] ?? 0),
+                ];
+
+                // Prices drift with the market; cache ~30 min + jitter.
+                Cache::put("fuzzwork:price:{$id}", $price, now()->addSeconds(random_int(1800, 2100)));
+                $prices[$id] = $price;
+            }
+        }
+
+        return $prices;
     }
 
     /**

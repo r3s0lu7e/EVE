@@ -12,13 +12,15 @@ class EveAuthController extends Controller
 {
     /**
      * Scopes requested from EVE SSO. Wallet read is the one that matters;
-     * structures resolves citadel names, markets reads open orders.
+     * structures resolves citadel names, markets reads open orders, assets
+     * reads the character's item list for net-worth valuation.
      */
     private const SCOPES = [
         'publicData',
         'esi-wallet.read_character_wallet.v1',
         'esi-universe.read_structures.v1',
         'esi-markets.read_character_orders.v1',
+        'esi-assets.read_assets.v1',
     ];
 
     public function redirect()
