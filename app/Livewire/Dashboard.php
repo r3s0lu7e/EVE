@@ -22,16 +22,16 @@ class Dashboard extends Component
 
     private const MAX_JOURNAL_ITEMS = 100;
 
-    #[Url] public string $character = 'all';
-    #[Url] public string $from = '';
-    #[Url] public string $to = '';
-    #[Url] public string $search = '';
-    #[Url] public ?int $regionId = null;
-    #[Url] public string $groupBy = 'product';
-    #[Url] public bool $includeUnmatched = false;
-    #[Url] public ?string $minProfit = null;
-    #[Url] public string $sort = 'net_profit';
-    #[Url] public string $dir = 'desc';
+    #[Url] #[\Livewire\Attributes\Session] public string $character = 'all';
+    #[Url] #[\Livewire\Attributes\Session] public string $from = '';
+    #[Url] #[\Livewire\Attributes\Session] public string $to = '';
+    #[Url] #[\Livewire\Attributes\Session] public string $search = '';
+    #[Url] #[\Livewire\Attributes\Session] public ?int $regionId = null;
+    #[Url] #[\Livewire\Attributes\Session] public string $groupBy = 'product';
+    #[Url] #[\Livewire\Attributes\Session] public bool $includeUnmatched = false;
+    #[Url] #[\Livewire\Attributes\Session] public ?string $minProfit = null;
+    #[Url] #[\Livewire\Attributes\Session] public string $sort = 'net_profit';
+    #[Url] #[\Livewire\Attributes\Session] public string $dir = 'desc';
 
     public ?string $syncMessage = null;
     public bool $syncing = false;

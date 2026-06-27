@@ -2,26 +2,45 @@
 
 namespace App\Livewire;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Session;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
  * A searchable, sortable index of every item the capsuleer has traded, with
- * all-time realized totals per item. Each row links to its detail page.
+ * realized totals per item over the selected period. Each row links to detail.
  */
 class ProductList extends Component
 {
     use WithPagination;
 
-    #[Url] public string $search = '';
-    #[Url] public string $sort = 'net_profit';
-    #[Url] public string $dir = 'desc';
+    /** Selectable date ranges: key => [label, days-back] (null days = all time). */
+    public const PRESETS = [
+        'all' => ['All time', null],
+        '7d' => ['7 days', 7],
+        '30d' => ['30 days', 30],
+        '90d' => ['90 days', 90],
+        'ytd' => ['This year', null],
+    ];
 
-    public function updatedSearch(): void
+    #[Url] #[Session] public string $search = '';
+    #[Url] #[Session] public string $preset = 'all';
+    #[Url] #[Session] public string $sort = 'net_profit';
+    #[Url] #[Session] public string $dir = 'desc';
+
+    /** Commit the (deferred) search input — runs on submit / the Search button. */
+    public function applyFilters(): void
     {
+        $this->resetPage();
+    }
+
+    public function setPreset(string $preset): void
+    {
+        $this->preset = array_key_exists($preset, self::PRESETS) ? $preset : 'all';
         $this->resetPage();
     }
 
@@ -36,14 +55,37 @@ class ProductList extends Component
         $this->resetPage();
     }
 
+    /**
+     * Inclusive [start, end] datetime bounds for the selected preset, or null
+     * for "all time" (no date filter).
+     *
+     * @return array{0:string,1:string}|null
+     */
+    private function dateBounds(): ?array
+    {
+        $end = now()->endOfDay();
+
+        $start = match ($this->preset) {
+            '7d' => now()->subDays(7)->startOfDay(),
+            '30d' => now()->subDays(30)->startOfDay(),
+            '90d' => now()->subDays(90)->startOfDay(),
+            'ytd' => now()->startOfYear(),
+            default => null,
+        };
+
+        return $start === null ? null : [$start->toDateTimeString(), $end->toDateTimeString()];
+    }
+
     private function rows()
     {
         $sortable = ['label', 'net_profit', 'gross_profit', 'fees', 'quantity', 'revenue', 'sales', 'last_traded'];
         $sort = in_array($this->sort, $sortable, true) ? $this->sort : 'net_profit';
+        $bounds = $this->dateBounds();
 
         return DB::table('trade_matches')
             ->leftJoin('eve_types', 'eve_types.type_id', '=', 'trade_matches.type_id')
             ->where('trade_matches.unmatched', false)
+            ->when($bounds, fn ($q) => $q->whereBetween('trade_matches.sell_date', $bounds))
             ->when($this->search !== '', fn ($q) => $q->where('eve_types.name', 'like', '%'.$this->search.'%'))
             ->groupBy('trade_matches.type_id', 'eve_types.name', 'eve_types.group_name')
             ->selectRaw('trade_matches.type_id as type_id')
@@ -65,6 +107,7 @@ class ProductList extends Component
     {
         return view('livewire.product-list', [
             'rows' => $this->rows(),
+            'rangeLabel' => self::PRESETS[$this->preset][0] ?? 'All time',
         ]);
     }
 }

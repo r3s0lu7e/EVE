@@ -82,7 +82,7 @@
             <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-500">Item
                 <div class="relative mt-1">
                     <svg class="pointer-events-none absolute left-2 top-2 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                    <input type="text" placeholder="Search name…" wire:model="search"
+                    <input type="text" placeholder="Search name…" wire:model="search" data-search-focus
                            class="w-full rounded-md border border-slate-700 bg-space-800 py-1.5 pl-8 pr-2.5 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
             </label>

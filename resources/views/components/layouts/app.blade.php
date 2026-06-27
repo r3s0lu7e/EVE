@@ -197,6 +197,21 @@
         window.localTzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
     </script>
 
+    {{-- Ctrl/Cmd+F focuses the page's search box (if it has one) instead of the
+         browser's native find. Registered once on the persistent layout, so it
+         keeps working across wire:navigate page changes. --}}
+    <script>
+        document.addEventListener('keydown', (e) => {
+            const isFind = (e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F');
+            if (!isFind) return;
+            const box = document.querySelector('[data-search-focus]');
+            if (!box) return;
+            e.preventDefault();
+            box.focus();
+            box.select?.();
+        });
+    </script>
+
     @livewireScripts
 </body>
 </html>

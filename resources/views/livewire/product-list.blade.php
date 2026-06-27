@@ -4,16 +4,34 @@
 
 <div wire:key="product-list" class="space-y-6">
     {{-- Toolbar --}}
-    <div class="flex flex-wrap items-end justify-between gap-3">
-        <div>
-            <h1 class="text-lg font-semibold tracking-tight text-slate-100">Products</h1>
-            <p class="mt-0.5 text-xs text-slate-500">Every item you've traded · all-time realized profit · <span class="num">{{ $rows->total() }}</span> items</p>
+    <div class="space-y-3">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h1 class="text-lg font-semibold tracking-tight text-slate-100">Products</h1>
+                <p class="mt-0.5 text-xs text-slate-500">Every item you've traded · {{ strtolower($rangeLabel) }} realized profit · <span class="num">{{ $rows->total() }}</span> items</p>
+            </div>
+            <form wire:submit="applyFilters" class="flex items-center gap-2">
+                <label class="relative">
+                    <svg class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <input type="search" placeholder="Search items…" wire:model="search" data-search-focus
+                           class="w-64 rounded-md border border-slate-700 bg-space-800 py-2 pl-8 pr-2.5 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
+                </label>
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 rounded-md bg-eve-500 px-3.5 py-2 text-sm font-medium text-space-900 shadow-glow transition-colors hover:bg-eve-400 cursor-pointer">
+                    Search
+                </button>
+            </form>
         </div>
-        <label class="relative">
-            <svg class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <input type="search" placeholder="Search items…" wire:model.live.debounce.300ms="search"
-                   class="w-64 rounded-md border border-slate-700 bg-space-800 py-2 pl-8 pr-2.5 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
-        </label>
+
+        {{-- Date range presets --}}
+        <div class="inline-flex flex-wrap rounded-lg border border-slate-800 bg-space-800/60 p-0.5" role="tablist" aria-label="Date range">
+            @foreach(\App\Livewire\ProductList::PRESETS as $key => [$label, $days])
+                <button wire:click="setPreset('{{ $key }}')" role="tab" aria-selected="{{ $preset === $key ? 'true' : 'false' }}"
+                        class="rounded-md px-3 py-1 text-xs font-medium transition-colors cursor-pointer {{ $preset === $key ? 'bg-eve-500 text-space-900' : 'text-slate-400 hover:text-slate-200' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
     </div>
 
     {{-- Table --}}
