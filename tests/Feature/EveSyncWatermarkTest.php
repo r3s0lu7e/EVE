@@ -57,4 +57,53 @@ class EveSyncWatermarkTest extends TestCase
         $this->assertSame(0, $second['transactions']);
         $this->assertSame(101, (int) $character->refresh()->last_transaction_id);
     }
+
+    public function test_next_sync_is_scheduled_just_after_a_future_expiry(): void
+    {
+        $character = $this->makeCharacter(90000051);
+        $future = now()->addMinutes(40);
+
+        $this->fakeJournalExpiry($future);
+        app(EveSyncService::class)->syncCharacter($character);
+
+        $next = $character->refresh()->wallet_next_sync_at;
+        $this->assertTrue($next->greaterThan($future), 'next sync should be after the published expiry');
+        $this->assertTrue($next->lessThanOrEqualTo($future->copy()->addSeconds(120)));
+    }
+
+    public function test_a_past_expiry_is_never_persisted_as_the_next_sync_time(): void
+    {
+        // Boundary stale-read: ESI can hand back an already-expired window with the
+        // still-old copy. Storing that time would be wrong the moment it's saved and
+        // make --due re-sync every run; we schedule a short retry instead.
+        $character = $this->makeCharacter(90000052);
+
+        $this->fakeJournalExpiry(now()->subMinutes(5));
+        app(EveSyncService::class)->syncCharacter($character);
+
+        $next = $character->refresh()->wallet_next_sync_at;
+        $this->assertTrue($next->isFuture(), 'a past expiry must not be persisted as the next sync time');
+        $this->assertTrue($next->lessThanOrEqualTo(now()->addMinutes(2)), 'a stale read should retry soon, not in an hour');
+    }
+
+    private function makeCharacter(int $id): Character
+    {
+        return Character::create([
+            'character_id' => $id,
+            'name' => 'Expiry'.$id,
+            'access_token' => 'token',
+            'token_expires_at' => now()->addHour(),
+        ]);
+    }
+
+    private function fakeJournalExpiry(\Illuminate\Support\Carbon $expires): void
+    {
+        Http::fake([
+            '*/wallet/transactions/*' => Http::response([], 200),
+            '*/wallet/journal/*' => Http::response([], 200, [
+                'X-Pages' => '1',
+                'Expires' => $expires->copy()->utc()->format('D, d M Y H:i:s').' GMT',
+            ]),
+        ]);
+    }
 }

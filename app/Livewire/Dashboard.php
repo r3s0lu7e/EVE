@@ -39,10 +39,10 @@ class Dashboard extends Component
     public function mount(): void
     {
         if ($this->from === '') {
-            $this->from = now()->subDays(30)->toDateString();
+            $this->from = now()->startOfMonth()->toDateString();
         }
         if ($this->to === '') {
-            $this->to = now()->toDateString();
+            $this->to = now()->endOfMonth()->toDateString();
         }
     }
 

@@ -52,15 +52,29 @@ class EveSyncService
 
         $cache = $this->esi->lastJournalCache();
         $expires = $cache['expires'] ?? null;
+        $now = now();
+
+        // Schedule the next sync off the *published* ESI expiry, but never persist
+        // a stale/wrong time. ESI publishes wallet data on round clock boundaries
+        // and, right at the boundary, can serve the still-old copy with an Expires
+        // header already in the past — trusting that would store a "next refresh"
+        // that's wrong the moment it's saved and make --due re-sync every run.
+        if ($expires === null) {
+            // Missing/unparseable header: fall back to ESI's 1-hour wallet cache.
+            $nextSync = $now->copy()->addHour();
+        } elseif ($expires->isPast()) {
+            // Boundary stale-read: the fresh copy regenerates momentarily, so
+            // retry shortly rather than waiting a full hour or hammering.
+            $nextSync = $now->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX));
+        } else {
+            $nextSync = $expires->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX));
+        }
+
         $character->forceFill([
-            'last_synced_at' => now(),
+            'last_synced_at' => $now,
             'wallet_as_of' => $cache['as_of'] ?? null,
             'wallet_expires_at' => $expires,
-            // Fall back to ESI's 1-hour wallet cache when the Expires header is
-            // missing, so a parse failure doesn't leave next-sync null and make
-            // --due re-sync this character every minute.
-            'wallet_next_sync_at' => ($expires ?? now()->addHour())
-                ->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX)),
+            'wallet_next_sync_at' => $nextSync,
         ])->save();
 
         return [
