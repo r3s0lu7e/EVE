@@ -134,8 +134,8 @@ class Dashboard extends Component
             ));
     }
 
-    /** Aggregated, grouped, paginated rows for the table. */
-    private function groupedRows()
+    /** Aggregated, grouped rows for the table (no pagination applied). */
+    private function groupedQuery()
     {
         [$groupCol, $labelSelect, $joins] = $this->groupConfig();
 
@@ -164,7 +164,13 @@ class Dashboard extends Component
         $sort = in_array($this->sort, $sortable, true) ? $this->sort : 'net_profit';
         $query->orderBy($sort, $this->dir === 'asc' ? 'asc' : 'desc');
 
-        return $query->paginate(20);
+        return $query;
+    }
+
+    /** Aggregated, grouped, paginated rows for the table. */
+    private function groupedRows()
+    {
+        return $this->groupedQuery()->paginate(20);
     }
 
     /**
@@ -200,6 +206,10 @@ class Dashboard extends Component
             ->selectRaw('COALESCE(SUM(gross_profit),0) as gross')
             ->selectRaw('COALESCE(SUM(sales_tax_alloc + broker_fee_alloc),0) as fees')
             ->selectRaw('COALESCE(SUM(quantity * sell_unit_price),0) as revenue')
+            // Revenue from matched rows only; net profit is 0 on unmatched rows,
+            // so margin must use the same base or it reads artificially low when
+            // unmatched sales are included.
+            ->selectRaw('COALESCE(SUM(CASE WHEN unmatched = 0 THEN quantity * sell_unit_price ELSE 0 END),0) as revenue_matched')
             ->selectRaw('COUNT(DISTINCT sell_transaction_id) as sales')
             ->first();
 
@@ -208,6 +218,7 @@ class Dashboard extends Component
             ->count();
 
         $revenue = (float) $row->revenue;
+        $matchedRevenue = (float) $row->revenue_matched;
 
         return [
             'net' => (float) $row->net,
@@ -215,7 +226,7 @@ class Dashboard extends Component
             'fees' => (float) $row->fees,
             'revenue' => $revenue,
             'sales' => (int) $row->sales,
-            'margin' => $revenue > 0 ? ((float) $row->net / $revenue) * 100 : 0.0,
+            'margin' => $matchedRevenue > 0 ? ((float) $row->net / $matchedRevenue) * 100 : 0.0,
             'unmatched' => $unmatched,
         ];
     }
@@ -324,7 +335,7 @@ class Dashboard extends Component
 
     public function export(): StreamedResponse
     {
-        $rows = $this->groupedRows()->items();
+        $rows = $this->groupedQuery()->get();
         $groupLabel = ucfirst($this->groupBy);
 
         return response()->streamDownload(function () use ($rows, $groupLabel) {

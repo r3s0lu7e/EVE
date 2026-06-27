@@ -279,6 +279,13 @@ class EsiClient
             $reset = (int) ($response->header('X-Esi-Error-Limit-Reset') ?? 1);
 
             if ($response->status() === 420 || ($response->failed() && $remain <= 2)) {
+                // Only the CLI sync (no user waiting) blocks for the window to
+                // reset; a web request fails fast and lets the caller degrade
+                // rather than freezing the page for up to a minute.
+                if (! app()->runningInConsole()) {
+                    break;
+                }
+
                 sleep(min($reset + 1, 60));
                 $response = $request();
 

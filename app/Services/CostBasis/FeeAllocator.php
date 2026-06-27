@@ -31,12 +31,15 @@ class FeeAllocator
         [$taxByTxn, $totalTax] = $this->collectSalesTax($journalEntries);
         $totalBroker = $this->sumAbs($journalEntries, 'brokers_fee');
 
-        // Did context-linking find any tax for sells we actually hold matches for?
+        // Tax we could pin to a specific matched sell via context_id. The rest
+        // (null context, or tax for sells we hold no match for) is the
+        // "unmapped" remainder, spread proportionally below — so every ISK of
+        // tax is distributed even when only some sells are context-linked.
         $mappedTax = 0.0;
         foreach ($matchedKeys as $k) {
             $mappedTax += $taxByTxn[$matches[$k]['sell_transaction_id']] ?? 0.0;
         }
-        $useTaxFallback = $mappedTax <= 0.0 && $totalTax > 0.0;
+        $unmappedTax = max($totalTax - $mappedTax, 0.0);
 
         // Per-sell quantity totals (to split a sale's tax across its lot rows).
         $sellQty = [];
@@ -49,13 +52,12 @@ class FeeAllocator
             $m = $matches[$k];
             $share = $totalSellValue > 0 ? $sellValue($m) / $totalSellValue : 0.0;
 
-            if ($useTaxFallback) {
-                $tax = $totalTax * $share;
-            } else {
-                $sellId = $m['sell_transaction_id'];
-                $sellTax = $taxByTxn[$sellId] ?? 0.0;
-                $tax = $sellQty[$sellId] > 0 ? $sellTax * ($m['quantity'] / $sellQty[$sellId]) : 0.0;
-            }
+            // Context-linked tax for this sell (split across its lot rows by
+            // quantity) plus this row's share of the unmapped remainder.
+            $sellId = $m['sell_transaction_id'];
+            $sellTax = $taxByTxn[$sellId] ?? 0.0;
+            $contextTax = $sellQty[$sellId] > 0 ? $sellTax * ($m['quantity'] / $sellQty[$sellId]) : 0.0;
+            $tax = $contextTax + $unmappedTax * $share;
 
             $broker = $totalBroker * $share;
 

@@ -56,9 +56,11 @@ class EveSyncService
             'last_synced_at' => now(),
             'wallet_as_of' => $cache['as_of'] ?? null,
             'wallet_expires_at' => $expires,
-            'wallet_next_sync_at' => $expires
-                ? $expires->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX))
-                : null,
+            // Fall back to ESI's 1-hour wallet cache when the Expires header is
+            // missing, so a parse failure doesn't leave next-sync null and make
+            // --due re-sync this character every minute.
+            'wallet_next_sync_at' => ($expires ?? now()->addHour())
+                ->copy()->addSeconds(random_int(self::SYNC_JITTER_MIN, self::SYNC_JITTER_MAX)),
         ])->save();
 
         return [
@@ -117,7 +119,7 @@ class EveSyncService
             }
 
             $character->forceFill([
-                'last_transaction_id' => max(array_keys($collected), [$known ?? 0]),
+                'last_transaction_id' => max(array_merge(array_keys($collected), [$known ?? 0])),
             ])->save();
         }
 
