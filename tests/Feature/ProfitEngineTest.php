@@ -14,8 +14,10 @@ class ProfitEngineTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_rebuild_persists_fifo_matches_and_net_reconciles(): void
+    public function test_rebuild_persists_fifo_matches_with_per_trade_fees(): void
     {
+        config(['eve.broker_fee_rate' => 0.03, 'eve.market_provider_tax_rate' => 0.0]);
+
         $character = Character::create([
             'character_id' => 90000001,
             'name' => 'Test Trader',
@@ -26,8 +28,10 @@ class ProfitEngineTest extends TestCase
         $this->txn(2, $character, 34, 100, 6.0, '2026-01-02 00:00:00', true);
         $this->txn(3, $character, 34, 150, 10.0, '2026-01-03 00:00:00', false);
 
-        // Fees: 75 sales tax (linked to sell #3), 40 broker fee.
-        JournalEntry::create(['id' => 1001, 'character_id' => $character->character_id, 'date' => '2026-01-03 00:00:00', 'ref_type' => 'transaction_tax', 'amount' => -75.0, 'context_id' => 3]);
+        // 75 sales tax posted at the sell instant (linked by timestamp). The
+        // broker fee is a placement cost in the journal — it must NOT be counted;
+        // broker is estimated per trade at the configured rate instead.
+        JournalEntry::create(['id' => 1001, 'character_id' => $character->character_id, 'date' => '2026-01-03 00:00:00', 'ref_type' => 'transaction_tax', 'amount' => -75.0]);
         JournalEntry::create(['id' => 1002, 'character_id' => $character->character_id, 'date' => '2026-01-01 00:00:00', 'ref_type' => 'brokers_fee', 'amount' => -40.0]);
 
         $count = app(ProfitEngine::class)->rebuildForCharacter($character);
@@ -37,12 +41,14 @@ class ProfitEngineTest extends TestCase
         $this->assertSame(2, TradeMatch::where('character_id', $character->character_id)->count());
 
         // Gross = (10-5)*100 + (10-6)*50 = 500 + 200 = 700.
-        $gross = (float) TradeMatch::sum('gross_profit');
-        $this->assertEqualsWithDelta(700.0, $gross, 0.01);
+        $this->assertEqualsWithDelta(700.0, (float) TradeMatch::sum('gross_profit'), 0.01);
 
-        // Net = 700 - 75 tax - 40 broker = 585 (aggregate is exact).
-        $net = (float) TradeMatch::sum('net_profit');
-        $this->assertEqualsWithDelta(585.0, $net, 0.01);
+        // Tax = exact 75 (whole sale at one timestamp).
+        $this->assertEqualsWithDelta(75.0, (float) TradeMatch::sum('sales_tax_alloc'), 0.01);
+        // Broker = sale value 1500 * 3% = 45 (the -40 journal entry is ignored).
+        $this->assertEqualsWithDelta(45.0, (float) TradeMatch::sum('broker_fee_alloc'), 0.01);
+        // Net = 700 - 75 - 45 = 580.
+        $this->assertEqualsWithDelta(580.0, (float) TradeMatch::sum('net_profit'), 0.01);
     }
 
     public function test_rebuild_is_idempotent(): void

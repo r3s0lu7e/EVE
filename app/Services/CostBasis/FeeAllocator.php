@@ -3,112 +3,114 @@
 namespace App\Services\CostBasis;
 
 /**
- * Allocates wallet fees (sales tax + broker fees) onto FIFO match rows and
- * computes net_profit.
+ * Attributes EVE market fees to FIFO match rows and computes net_profit, using
+ * a "per-trade actual" model: each completed trade is charged only the fees that
+ * trade actually incurred — not a proportional slice of every fee on the account.
  *
- * Design tradeoff: per-trade attribution is approximate (broker fees post at
- * order placement, not per fill, and aren't broken down by item), but the
- * *aggregate* is exact — every ISK of tax and broker fee is distributed, so the
- * summed net_profit reconciles with the wallet. Sales tax is attributed to the
- * specific sale via the journal's context_id when available; otherwise both
- * fees are spread proportionally to sell value across matched rows.
+ *  - Sales tax (transaction_tax) is linked EXACTLY. It posts at the instant of
+ *    the sale, so we match it to matched rows by sell timestamp (the journal
+ *    carries no transaction id). Tax landing in the same second is split across
+ *    the rows that sold then, by sale value.
+ *
+ *  - Broker fee and market provider tax are charged at order *placement*, for
+ *    orders that may never sell, and the journal can't link a placement to the
+ *    fill it eventually produces. They are therefore ESTIMATED at configured
+ *    rates against the trade's own sale value. Provider tax applies only to sales
+ *    made at player-owned (Upwell) structures.
+ *
+ * Consequence: the summed net_profit no longer reconciles to the wallet balance
+ * (broker/provider fees on still-open orders are intentionally not charged to
+ * completed trades). The Wallet Activity panel remains the source of truth for
+ * total ISK in/out; this engine answers "what did each sold item actually net".
  */
 class FeeAllocator
 {
+    /** Upwell (player) structure ids start here; NPC stations are far below. */
+    private const PLAYER_STRUCTURE_MIN_ID = 1_000_000_000_000;
+
+    public function __construct(
+        private float $brokerFeeRate = 0.0,
+        private float $marketProviderTaxRate = 0.0,
+    ) {
+    }
+
     /**
      * @param  array<int,array<string,mixed>>  $matches      Rows from a CostBasisStrategy (mutated in place).
-     * @param  array<int,array<string,mixed>>  $journalEntries Raw journal rows: ref_type, amount, context_id.
+     * @param  array<int,array<string,mixed>>  $journalEntries Raw journal rows: ref_type, amount, date.
      * @return array<int,array<string,mixed>>  The matches with sales_tax_alloc, broker_fee_alloc, net_profit set.
      */
     public function allocate(array $matches, array $journalEntries): array
     {
-        // Only matched rows participate in fee allocation; unmatched stay at 0.
-        $matchedKeys = array_keys(array_filter($matches, fn ($m) => ! $m['unmatched']));
+        $taxByDate = $this->sumByDate($journalEntries, 'transaction_tax');
 
-        $sellValue = fn ($m) => $m['quantity'] * $m['sell_unit_price'];
-        $totalSellValue = array_sum(array_map(fn ($k) => $sellValue($matches[$k]), $matchedKeys));
-
-        [$taxByTxn, $totalTax] = $this->collectSalesTax($journalEntries);
-        $totalBroker = $this->sumAbs($journalEntries, 'brokers_fee');
-
-        // Tax we could pin to a specific matched sell via context_id. The rest
-        // (null context, or tax for sells we hold no match for) is the
-        // "unmapped" remainder, spread proportionally below — so every ISK of
-        // tax is distributed even when only some sells are context-linked.
-        $mappedTax = 0.0;
-        foreach ($matchedKeys as $k) {
-            $mappedTax += $taxByTxn[$matches[$k]['sell_transaction_id']] ?? 0.0;
-        }
-        $unmappedTax = max($totalTax - $mappedTax, 0.0);
-
-        // Per-sell quantity totals (to split a sale's tax across its lot rows).
-        $sellQty = [];
-        foreach ($matchedKeys as $k) {
-            $id = $matches[$k]['sell_transaction_id'];
-            $sellQty[$id] = ($sellQty[$id] ?? 0) + $matches[$k]['quantity'];
+        // Matched sale value per sell timestamp, to split a second's tax across
+        // the rows that sold in it.
+        $valueByDate = [];
+        foreach ($matches as $m) {
+            if ($m['unmatched']) {
+                continue;
+            }
+            $valueByDate[$m['sell_date']] = ($valueByDate[$m['sell_date']] ?? 0.0) + $this->saleValue($m);
         }
 
-        foreach ($matchedKeys as $k) {
-            $m = $matches[$k];
-            $share = $totalSellValue > 0 ? $sellValue($m) / $totalSellValue : 0.0;
-
-            // Context-linked tax for this sell (split across its lot rows by
-            // quantity) plus this row's share of the unmapped remainder.
-            $sellId = $m['sell_transaction_id'];
-            $sellTax = $taxByTxn[$sellId] ?? 0.0;
-            $contextTax = $sellQty[$sellId] > 0 ? $sellTax * ($m['quantity'] / $sellQty[$sellId]) : 0.0;
-            $tax = $contextTax + $unmappedTax * $share;
-
-            $broker = $totalBroker * $share;
-
-            $matches[$k]['sales_tax_alloc'] = round($tax, 2);
-            $matches[$k]['broker_fee_alloc'] = round($broker, 2);
-            $matches[$k]['net_profit'] = round($m['gross_profit'] - $tax - $broker, 2);
-        }
-
-        // Ensure every row has the fee/net keys set.
         foreach ($matches as $i => $m) {
-            $matches[$i]['sales_tax_alloc'] = $m['sales_tax_alloc'] ?? 0.0;
-            $matches[$i]['broker_fee_alloc'] = $m['broker_fee_alloc'] ?? 0.0;
-            $matches[$i]['net_profit'] = $m['net_profit'] ?? 0.0;
+            if ($m['unmatched']) {
+                $matches[$i]['sales_tax_alloc'] = 0.0;
+                $matches[$i]['broker_fee_alloc'] = 0.0;
+                $matches[$i]['net_profit'] = 0.0;
+
+                continue;
+            }
+
+            $value = $this->saleValue($m);
+            $dateValue = $valueByDate[$m['sell_date']] ?? 0.0;
+
+            // Exact sales tax for this row's share of its second's sales.
+            $tax = $dateValue > 0 ? ($taxByDate[$m['sell_date']] ?? 0.0) * ($value / $dateValue) : 0.0;
+
+            // Estimated placement fees on this trade's own value.
+            $broker = $value * $this->brokerFeeRate;
+            $provider = $this->isPlayerStructure($m['location_id']) ? $value * $this->marketProviderTaxRate : 0.0;
+
+            // Provider tax is a tax, so it joins the tax column; the dashboard
+            // shows sales_tax_alloc + broker_fee_alloc as combined fees.
+            $matches[$i]['sales_tax_alloc'] = round($tax + $provider, 2);
+            $matches[$i]['broker_fee_alloc'] = round($broker, 2);
+            $matches[$i]['net_profit'] = round($m['gross_profit'] - $tax - $provider - $broker, 2);
         }
 
         return $matches;
     }
 
-    /**
-     * @return array{0: array<int,float>, 1: float}  [taxByTransactionId, totalTax]
-     */
-    private function collectSalesTax(array $journalEntries): array
+    private function saleValue(array $match): float
     {
-        $byTxn = [];
-        $total = 0.0;
-
-        foreach ($journalEntries as $entry) {
-            if (($entry['ref_type'] ?? null) !== 'transaction_tax') {
-                continue;
-            }
-            $amount = abs((float) ($entry['amount'] ?? 0));
-            $total += $amount;
-
-            $contextId = $entry['context_id'] ?? null;
-            if ($contextId !== null) {
-                $byTxn[(int) $contextId] = ($byTxn[(int) $contextId] ?? 0.0) + $amount;
-            }
-        }
-
-        return [$byTxn, $total];
+        return $match['quantity'] * $match['sell_unit_price'];
     }
 
-    private function sumAbs(array $journalEntries, string $refType): float
+    private function isPlayerStructure(?int $locationId): bool
     {
-        $sum = 0.0;
+        return $locationId !== null && $locationId >= self::PLAYER_STRUCTURE_MIN_ID;
+    }
+
+    /**
+     * Sum journal amounts of one ref_type, keyed by exact timestamp string.
+     *
+     * @return array<string,float>
+     */
+    private function sumByDate(array $journalEntries, string $refType): array
+    {
+        $byDate = [];
         foreach ($journalEntries as $entry) {
-            if (($entry['ref_type'] ?? null) === $refType) {
-                $sum += abs((float) ($entry['amount'] ?? 0));
+            if (($entry['ref_type'] ?? null) !== $refType) {
+                continue;
             }
+            $date = $entry['date'] ?? null;
+            if ($date === null) {
+                continue;
+            }
+            $byDate[$date] = ($byDate[$date] ?? 0.0) + abs((float) ($entry['amount'] ?? 0));
         }
 
-        return $sum;
+        return $byDate;
     }
 }

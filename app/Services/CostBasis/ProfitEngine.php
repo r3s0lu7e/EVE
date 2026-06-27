@@ -41,11 +41,13 @@ class ProfitEngine
 
         $journal = JournalEntry::query()
             ->where('character_id', $character->character_id)
-            ->get(['ref_type', 'amount', 'context_id'])
+            ->get(['ref_type', 'amount', 'date'])
             ->map(fn (JournalEntry $j) => [
                 'ref_type' => $j->ref_type,
                 'amount' => (float) $j->amount,
-                'context_id' => $j->context_id !== null ? (int) $j->context_id : null,
+                // Same format as Transaction::date above, so the FeeAllocator can
+                // link sales tax to a sale by exact timestamp.
+                'date' => $j->date->toDateTimeString(),
             ])
             ->all();
 

@@ -18,6 +18,16 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\CostBasis\CostBasisStrategy::class,
             \App\Services\CostBasis\FifoStrategy::class,
         );
+
+        // Broker fee / provider tax rates for per-trade fee estimation (sales tax
+        // is linked exactly, not rated). See config/eve.php.
+        $this->app->bind(
+            \App\Services\CostBasis\FeeAllocator::class,
+            fn () => new \App\Services\CostBasis\FeeAllocator(
+                (float) config('eve.broker_fee_rate'),
+                (float) config('eve.market_provider_tax_rate'),
+            ),
+        );
     }
 
     /**
