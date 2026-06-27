@@ -68,6 +68,26 @@
 
     {{-- Filters --}}
     <form wire:submit="applyFilters" class="rounded-xl border border-slate-800/80 bg-space-850/60 p-4">
+        @php
+            $presets = [
+                'today' => 'Today',
+                'yesterday' => 'Yesterday',
+                '7d' => 'Last 7 days',
+                '30d' => 'Last 30 days',
+                'month' => 'This month',
+                'last_month' => 'Last month',
+                'ytd' => 'Year to date',
+            ];
+        @endphp
+        <div class="mb-3 flex flex-wrap items-center gap-1.5">
+            <span class="mr-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Quick range</span>
+            @foreach($presets as $key => $label)
+                <button type="button" wire:click="setRange('{{ $key }}')"
+                        class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {{ $this->activePreset === $key ? 'border-eve-400/60 bg-eve-500/15 text-eve-200' : 'border-slate-700/70 text-slate-400 hover:bg-slate-800 hover:text-slate-200' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             <label class="block text-[11px] font-medium uppercase tracking-wide text-slate-500">From
                 <div wire:ignore class="mt-1" x-data="eveDatePicker('from')" wire:key="picker-from">
@@ -347,7 +367,7 @@
                 init() {
                     const sharedClass = 'num w-full rounded-md border border-slate-700 bg-space-800 px-2.5 py-1.5 text-sm text-slate-100 focus:border-eve-400 focus:ring-0';
 
-                    flatpickr(this.$refs.input, {
+                    const fp = flatpickr(this.$refs.input, {
                         dateFormat: 'Y-m-d',
                         altInput: true,
                         altFormat: 'd/m/Y',
@@ -358,6 +378,14 @@
                         // Assigning to $wire is deferred: it updates the property
                         // locally and ships with the next Livewire request (Apply).
                         onChange: (dates, str) => { this.$wire.set(field, str, false); },
+                    });
+
+                    // Preset buttons change from/to server-side, but this input is
+                    // wire:ignore — keep flatpickr in sync without re-firing onChange.
+                    this.$wire.$watch(field, (value) => {
+                        if (value && value !== fp.input.value) {
+                            fp.setDate(value, false);
+                        }
                     });
                 },
             };

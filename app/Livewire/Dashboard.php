@@ -10,6 +10,7 @@ use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -54,6 +55,54 @@ class Dashboard extends Component
     public function applyFilters(): void
     {
         $this->resetPage();
+    }
+
+    /**
+     * Preset date ranges (label key => [fromDate, toDate], both Y-m-d).
+     *
+     * @return array<string,array{0:string,1:string}>
+     */
+    private function presetRanges(): array
+    {
+        $now = now();
+
+        return [
+            'today' => [$now->copy()->toDateString(), $now->copy()->toDateString()],
+            'yesterday' => [$now->copy()->subDay()->toDateString(), $now->copy()->subDay()->toDateString()],
+            '7d' => [$now->copy()->subDays(6)->toDateString(), $now->copy()->toDateString()],
+            '30d' => [$now->copy()->subDays(29)->toDateString(), $now->copy()->toDateString()],
+            'month' => [$now->copy()->startOfMonth()->toDateString(), $now->copy()->endOfMonth()->toDateString()],
+            'last_month' => [
+                $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+                $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateString(),
+            ],
+            'ytd' => [$now->copy()->startOfYear()->toDateString(), $now->copy()->toDateString()],
+        ];
+    }
+
+    /** Apply a preset date range and immediately re-query. */
+    public function setRange(string $preset): void
+    {
+        $ranges = $this->presetRanges();
+        if (! isset($ranges[$preset])) {
+            return;
+        }
+
+        [$this->from, $this->to] = $ranges[$preset];
+        $this->resetPage();
+    }
+
+    /** Which preset (if any) matches the current from/to, for button highlighting. */
+    #[Computed]
+    public function activePreset(): ?string
+    {
+        foreach ($this->presetRanges() as $key => [$from, $to]) {
+            if ($this->from === $from && $this->to === $to) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     public function setGroupBy(string $groupBy): void
