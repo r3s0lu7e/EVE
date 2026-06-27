@@ -78,7 +78,7 @@ class ProductList extends Component
 
     private function rows()
     {
-        $sortable = ['label', 'net_profit', 'gross_profit', 'fees', 'quantity', 'revenue', 'sales', 'last_traded'];
+        $sortable = ['label', 'net_profit', 'gross_profit', 'fees', 'quantity', 'revenue', 'sales', 'avg_buy', 'avg_sell', 'last_traded'];
         $sort = in_array($this->sort, $sortable, true) ? $this->sort : 'net_profit';
         $bounds = $this->dateBounds();
 
@@ -96,6 +96,8 @@ class ProductList extends Component
             ->selectRaw('SUM(sales_tax_alloc + broker_fee_alloc) as fees')
             ->selectRaw('SUM(quantity) as quantity')
             ->selectRaw('SUM(quantity * sell_unit_price) as revenue')
+            ->selectRaw('SUM(quantity * sell_unit_price) / NULLIF(SUM(quantity), 0) as avg_sell')
+            ->selectRaw('SUM(quantity * buy_unit_cost) / NULLIF(SUM(CASE WHEN buy_unit_cost IS NOT NULL THEN quantity ELSE 0 END), 0) as avg_buy')
             ->selectRaw('COUNT(DISTINCT sell_transaction_id) as sales')
             ->selectRaw('MAX(sell_date) as last_traded')
             ->orderBy($sort, $this->dir === 'asc' ? 'asc' : 'desc')

@@ -45,6 +45,8 @@
                             'net_profit' => ['Net profit', 'right'],
                             'gross_profit' => ['Gross', 'right'],
                             'fees' => ['Fees', 'right'],
+                            'avg_buy' => ['Avg buy', 'right'],
+                            'avg_sell' => ['Avg sell', 'right'],
                             'quantity' => ['Qty', 'right'],
                             'sales' => ['Sales', 'right'],
                             'last_traded' => ['Last traded', 'right'],
@@ -89,13 +91,15 @@
                             <td class="num px-4 py-2.5 text-right font-medium {{ $row->net_profit >= 0 ? 'text-emerald-400' : 'text-rose-400' }}">{{ $isk($row->net_profit) }}</td>
                             <td class="num px-4 py-2.5 text-right text-slate-300">{{ $isk($row->gross_profit) }}</td>
                             <td class="num px-4 py-2.5 text-right text-amber-400/90">{{ $isk($row->fees) }}</td>
+                            <td class="num px-4 py-2.5 text-right text-slate-300">{{ $isk($row->avg_buy) }}</td>
+                            <td class="num px-4 py-2.5 text-right text-slate-300">{{ $isk($row->avg_sell) }}</td>
                             <td class="num px-4 py-2.5 text-right text-slate-400">{{ number_format($row->quantity) }}</td>
                             <td class="num px-4 py-2.5 text-right text-slate-400">{{ number_format($row->sales) }}</td>
                             <td class="num px-4 py-2.5 text-right text-slate-500" x-data x-text="fmtLocal(@js($row->last_traded), 'date')"></td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-12 text-center">
+                            <td colspan="9" class="px-4 py-12 text-center">
                                 <svg class="mx-auto h-8 w-8 text-slate-700" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                                 <p class="mt-2 text-sm text-slate-500">{{ $search !== '' ? 'No items match your search.' : 'No traded items yet — sync your wallet to get started.' }}</p>
                             </td>
