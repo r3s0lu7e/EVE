@@ -87,17 +87,22 @@
             </div>
             @php
                 $cards = [
-                    ['Gross profit', $isk($stats['gross']).' ISK', 'text-slate-100'],
-                    ['Fees', $isk($stats['fees']).' ISK', 'text-amber-400'],
-                    ['Units sold', number_format($stats['qty']), 'text-slate-100'],
-                    ['Avg buy', $isk($stats['avg_buy']).' ISK', 'text-slate-300'],
-                    ['Avg sell', $isk($stats['avg_sell']).' ISK', 'text-slate-300'],
+                    ['Avg buy', $isk($stats['avg_buy']).' ISK', 'text-slate-300',
+                        $stats['min_buy'] !== null ? $isk($stats['min_buy']).' – '.$isk($stats['max_buy']) : null],
+                    ['Avg sell', $isk($stats['avg_sell']).' ISK', 'text-slate-300',
+                        $stats['min_sell'] !== null ? $isk($stats['min_sell']).' – '.$isk($stats['max_sell']) : null],
+                    ['Gross profit', $isk($stats['gross']).' ISK', 'text-slate-100', null],
+                    ['Fees', $isk($stats['fees']).' ISK', 'text-amber-400', null],
+                    ['Units sold', number_format($stats['qty']), 'text-slate-100', null],
                 ];
             @endphp
-            @foreach($cards as [$label, $value, $color])
+            @foreach($cards as [$label, $value, $color, $range])
                 <div class="rounded-xl border border-slate-800/80 bg-space-850/50 p-4">
                     <div class="text-[11px] font-medium uppercase tracking-wide text-slate-500">{{ $label }}</div>
                     <div class="num mt-1.5 text-sm font-semibold {{ $color }}">{{ $value }}</div>
+                    @if($range)
+                        <div class="num mt-0.5 text-[11px] text-slate-500" title="Lowest – highest unit price">{{ $range }}</div>
+                    @endif
                 </div>
             @endforeach
         </div>

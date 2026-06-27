@@ -23,22 +23,8 @@ class ProductDetailTest extends TestCase
         Location::create(['location_id' => 60003760, 'name' => 'Jita IV - Moon 4', 'region_id' => 10000002]);
 
         TradeMatch::insert([
-            'character_id' => $character->character_id,
-            'type_id' => 34,
-            'location_id' => 60003760,
-            'sell_transaction_id' => 1,
-            'buy_transaction_id' => 2,
-            'quantity' => 100,
-            'buy_unit_cost' => 5,
-            'sell_unit_price' => 8,
-            'sell_date' => '2026-06-20 00:00:00',
-            'gross_profit' => 300,
-            'sales_tax_alloc' => 0,
-            'broker_fee_alloc' => 0,
-            'net_profit' => 300,
-            'unmatched' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
+            $this->match($character, 100, 5, 8, '2026-06-20 00:00:00'),  // buy 5, sell 8
+            $this->match($character, 50, 4, 9, '2026-06-21 00:00:00'),   // buy 4 (min), sell 9 (max)
         ]);
 
         Http::fake([
@@ -58,11 +44,38 @@ class ProductDetailTest extends TestCase
         Livewire::test(ProductDetail::class, ['typeId' => 34])
             ->assertSee('Tritanium')
             ->assertSee('Mineral')
-            // Local realized stats.
-            ->assertSee('300.00')
+            // Local realized net profit: (8-5)*100 + (9-4)*50 = 550.
+            ->assertSee('550.00')
+            // Min–max buy and sell price ranges.
+            ->assertSee('4.00 – 5.00')
+            ->assertSee('8.00 – 9.00')
             // Live market best sell (6.00) derived from the faked orders.
             ->assertSee('6.00')
             // ESI type description.
             ->assertSee('The most basic mineral.');
+    }
+
+    private function match(Character $c, int $qty, float $buy, float $sell, string $date): array
+    {
+        $gross = ($sell - $buy) * $qty;
+
+        return [
+            'character_id' => $c->character_id,
+            'type_id' => 34,
+            'location_id' => 60003760,
+            'sell_transaction_id' => random_int(1, PHP_INT_MAX),
+            'buy_transaction_id' => random_int(1, PHP_INT_MAX),
+            'quantity' => $qty,
+            'buy_unit_cost' => $buy,
+            'sell_unit_price' => $sell,
+            'sell_date' => $date,
+            'gross_profit' => $gross,
+            'sales_tax_alloc' => 0,
+            'broker_fee_alloc' => 0,
+            'net_profit' => $gross,
+            'unmatched' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
     }
 }

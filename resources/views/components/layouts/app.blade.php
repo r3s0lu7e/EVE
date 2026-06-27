@@ -112,15 +112,33 @@
     <div class="min-h-full">
         <header class="sticky top-0 z-40 border-b border-eve-400/10 bg-space-900/80 backdrop-blur">
             <div class="mx-auto flex max-w-[90rem] items-center justify-between px-4 py-3 sm:px-6">
-                <div class="flex items-center gap-2.5">
-                    {{-- Hexagonal "New Eden" mark --}}
-                    <svg class="h-7 w-7 text-eve-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M12 2.5 20 7v10l-8 4.5L4 17V7l8-4.5Z" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M12 7.5 16 10v4l-4 2.2L8 14v-4l4-2.5Z" fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-width="1"/>
-                    </svg>
-                    <span class="text-sm font-semibold tracking-wide text-slate-100">
-                        EVE <span class="text-eve-400">Trade Ledger</span>
-                    </span>
+                <div class="flex items-center gap-6">
+                    <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2.5">
+                        {{-- Hexagonal "New Eden" mark --}}
+                        <svg class="h-7 w-7 text-eve-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 2.5 20 7v10l-8 4.5L4 17V7l8-4.5Z" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M12 7.5 16 10v4l-4 2.2L8 14v-4l4-2.5Z" fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-width="1"/>
+                        </svg>
+                        <span class="text-sm font-semibold tracking-wide text-slate-100">
+                            EVE <span class="text-eve-400">Trade Ledger</span>
+                        </span>
+                    </a>
+
+                    <nav class="hidden items-center gap-1 sm:flex" aria-label="Primary">
+                        @php
+                            $nav = [
+                                ['Overview', 'dashboard', request()->routeIs('dashboard')],
+                                ['Products', 'products.index', request()->routeIs('products.index') || request()->routeIs('product.show')],
+                            ];
+                        @endphp
+                        @foreach($nav as [$label, $routeName, $active])
+                            <a href="{{ route($routeName) }}" wire:navigate
+                               @if($active) aria-current="page" @endif
+                               class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {{ $active ? 'bg-eve-500/10 text-eve-300' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200' }}">
+                                {{ $label }}
+                            </a>
+                        @endforeach
+                    </nav>
                 </div>
 
                 <div class="flex items-center gap-3 text-sm">

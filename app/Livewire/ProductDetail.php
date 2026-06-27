@@ -38,6 +38,11 @@ class ProductDetail extends Component
             // Quantity-weighted averages so big lots count proportionally.
             ->selectRaw('SUM(buy_unit_cost * quantity) as buy_cost_sum')
             ->selectRaw('SUM(sell_unit_price * quantity) as sell_price_sum')
+            // Best/worst unit prices seen across all your trades of this item.
+            ->selectRaw('MIN(buy_unit_cost) as min_buy')
+            ->selectRaw('MAX(buy_unit_cost) as max_buy')
+            ->selectRaw('MIN(sell_unit_price) as min_sell')
+            ->selectRaw('MAX(sell_unit_price) as max_sell')
             ->selectRaw('MIN(sell_date) as first_sale')
             ->selectRaw('MAX(sell_date) as last_sale')
             ->first();
@@ -54,6 +59,10 @@ class ProductDetail extends Component
             'sales' => (int) $row->sales,
             'avg_buy' => $qty > 0 ? (float) $row->buy_cost_sum / $qty : null,
             'avg_sell' => $qty > 0 ? (float) $row->sell_price_sum / $qty : null,
+            'min_buy' => $row->min_buy !== null ? (float) $row->min_buy : null,
+            'max_buy' => $row->max_buy !== null ? (float) $row->max_buy : null,
+            'min_sell' => $row->min_sell !== null ? (float) $row->min_sell : null,
+            'max_sell' => $row->max_sell !== null ? (float) $row->max_sell : null,
             'margin' => $revenue > 0 ? ((float) $row->net / $revenue) * 100 : 0.0,
             'first_sale' => $row->first_sale,
             'last_sale' => $row->last_sale,
