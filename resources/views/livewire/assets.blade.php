@@ -219,9 +219,9 @@
                         markers: { size: 0, hover: { size: 4 } },
                         grid: { borderColor: 'rgba(148,163,184,.12)', strokeDashArray: 3 },
                         legend: { position: 'top', horizontalAlign: 'left', labels: { colors: '#94a3b8' } },
-                        xaxis: { type: 'datetime', labels: { style: { colors: '#64748b', fontSize: '10px' } } },
+                        xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { colors: '#64748b', fontSize: '10px' } } },
                         yaxis: { labels: { formatter: v => new Intl.NumberFormat('en', { notation: 'compact' }).format(v), style: { colors: '#64748b' } } },
-                        tooltip: { theme: 'dark', x: { format: 'dd MMM yyyy HH:mm' }, y: { formatter: fmt } },
+                        tooltip: { theme: 'dark', x: { format: 'dd MMM yyyy HH:mm' }, y: { formatter: fmt }, datetimeUTC: false },
                     });
                     this.chart.render();
                 },
