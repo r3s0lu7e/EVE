@@ -14,14 +14,22 @@
 <div wire:key="calculator"
      x-data="{
          showSettings: true,
-         bump(e, step) {
-             const el = e.target;
-             if (e.shiftKey) step *= 10;        // coarse adjust
-             const dir = e.deltaY < 0 ? 1 : -1;  // scroll up = increase
-             let n = parseFloat(String(el.value).replace(/\s/g, '').replace(',', '.')) || 0;
-             n = Math.max(0, Math.round((n + dir * step) * 100) / 100);
-             el.value = n;
-             el.dispatchEvent(new Event('input', { bubbles: true }));
+         // Space-group the integer part so long ISK figures stay countable.
+         fmt(v) {
+             const parts = String(v).replace(/\s/g, '').split(/[.,]/);
+             const int = parts[0].replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+             return parts.length > 1 ? int + ',' + parts.slice(1).join('').replace(/\D/g, '') : int;
+         },
+         group(el) {
+             const caret = el.selectionStart ?? el.value.length;
+             const digitsBefore = el.value.slice(0, caret).replace(/\D/g, '').length;
+             el.value = this.fmt(el.value);
+             let count = 0, pos = 0;
+             while (pos < el.value.length && count < digitsBefore) {
+                 if (/\d/.test(el.value[pos])) count++;
+                 pos++;
+             }
+             el.setSelectionRange(pos, pos);
          },
      }"
      x-on:focus.capture="$event.target.matches('input') && $event.target.select()"
@@ -36,15 +44,16 @@
         <div>
             <label for="buyPrice" class="block text-xs font-medium text-slate-400">Buy price</label>
             <input id="buyPrice" type="text" inputmode="decimal" autocomplete="off"
-                   x-ref="buy" x-init="$nextTick(() => $refs.buy.focus())"
-                   x-on:wheel.prevent="bump($event, 1000)" title="Scroll to adjust · Shift = ×10"
+                   x-ref="buy" x-init="$el.value = fmt($el.value); $nextTick(() => $refs.buy.focus())"
+                   x-on:input="group($event.target)"
                    wire:model.live.debounce.250ms="buyPrice" placeholder="509 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
         <div>
             <label for="sellPrice" class="block text-xs font-medium text-slate-400">Sell price</label>
             <input id="sellPrice" type="text" inputmode="decimal" autocomplete="off"
-                   x-on:wheel.prevent="bump($event, 1000)" title="Scroll to adjust · Shift = ×10"
+                   x-init="$el.value = fmt($el.value)"
+                   x-on:input="group($event.target)"
                    wire:model.live.debounce.250ms="sellPrice" placeholder="824 700"
                    class="num mt-1 w-full rounded-lg border border-slate-700 bg-space-800 px-3 py-2.5 text-base text-slate-100 focus:border-eve-400 focus:ring-0">
         </div>
@@ -98,7 +107,6 @@
                 <div>
                     <label for="quantity" class="block text-xs font-medium text-slate-400">Quantity</label>
                     <input id="quantity" type="text" inputmode="numeric"
-                           x-on:wheel.prevent="bump($event, 1)" title="Scroll to adjust · Shift = ×10"
                            wire:model.live.debounce.300ms="quantity"
                            class="num mt-1 w-full rounded-md border border-slate-700 bg-space-800 px-3 py-2 text-sm text-slate-100 focus:border-eve-400 focus:ring-0">
                 </div>
