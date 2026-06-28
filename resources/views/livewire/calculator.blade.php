@@ -63,8 +63,13 @@
 
     {{-- Result: margin is the hero --}}
     @if(! $r)
-        <div class="flex min-h-[8rem] items-center justify-center rounded-xl border border-slate-800/80 bg-space-850/50 px-6 py-10 text-center">
-            <p class="text-sm text-slate-500">Enter a buy and sell price.</p>
+        <div class="flex min-h-[8rem] flex-col items-center justify-center gap-2 rounded-xl border border-slate-800/80 bg-space-850/50 px-6 py-10 text-center">
+            @if($this->breakEven !== null)
+                <p class="text-xs text-slate-400">Break-even sell: <span class="num text-slate-200">{{ $isk($this->breakEven) }}</span></p>
+                <p class="text-sm text-slate-500">Enter a sell price to see your margin.</p>
+            @else
+                <p class="text-sm text-slate-500">Enter a buy and sell price.</p>
+            @endif
         </div>
     @else
         <div class="rounded-xl border px-5 py-5 {{ $profitable ? 'border-emerald-600/40 bg-emerald-950/30' : 'border-rose-600/40 bg-rose-950/30' }}">

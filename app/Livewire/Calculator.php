@@ -72,10 +72,6 @@ class Calculator extends Component
 
         $profit = $received - $invested;
 
-        // Sell unit price at which net received exactly covers the investment.
-        $sellNetRate = 1 - $sellBrokerRate - $sccRate - $taxRate;
-        $breakEven = $sellNetRate > 0 ? $invested / ($qty * $sellNetRate) : 0.0;
-
         return [
             'buy_cost' => $buyCost,
             'buy_broker' => $buyBroker,
@@ -90,8 +86,34 @@ class Calculator extends Component
             'profit' => $profit,
             'profit_per_unit' => $profit / $qty,
             'margin' => $invested > 0 ? ($profit / $invested) * 100 : 0.0,
-            'break_even' => $breakEven,
+            'break_even' => $this->breakEven(),
         ];
+    }
+
+    /**
+     * Sell unit price at which net received exactly covers the buy-side
+     * investment. It depends only on the buy price and the fee rates — not on the
+     * sell price — so it's available as soon as a buy price is entered.
+     */
+    #[Computed]
+    public function breakEven(): ?float
+    {
+        $buy = $this->num($this->buyPrice);
+        $qty = max(0.0, $this->num($this->quantity));
+
+        if ($buy <= 0 || $qty <= 0) {
+            return null;
+        }
+
+        $buyBrokerRate = $this->num($this->buyBrokerFee) / 100;
+        $sellBrokerRate = $this->num($this->sellBrokerFee) / 100;
+        $sccRate = $this->num($this->sccSurcharge) / 100;
+        $taxRate = $this->num($this->salesTax) / 100;
+
+        $invested = $buy * $qty * (1 + $buyBrokerRate + $sccRate);
+        $sellNetRate = 1 - $sellBrokerRate - $sccRate - $taxRate;
+
+        return $sellNetRate > 0 ? $invested / ($qty * $sellNetRate) : 0.0;
     }
 
     /**
