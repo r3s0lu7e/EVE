@@ -15,9 +15,6 @@ use Illuminate\Support\Facades\Cache;
  */
 class AssetService
 {
-    /** Minimum gap between automatic (non-forced) Tracker snapshots. */
-    private const SNAPSHOT_INTERVAL_MINUTES = 55;
-
     public function __construct(
         private EsiClient $esi,
         private MarketService $market,
@@ -33,10 +30,10 @@ class AssetService
      * `total` is the full net worth: priced assets, liquid wallet ISK, the value
      * of items listed in sell orders, and ISK locked in buy-order escrow.
      *
-     * Each call also records a Tracker snapshot (assets valued at Jita sell, so
-     * the history stays consistent whatever basis is on screen): at most hourly,
-     * and only when the value has moved — unless $forceSnapshot is set, which a
-     * manual refresh uses to capture the change immediately.
+     * A Tracker snapshot (assets valued at Jita sell, so the history stays
+     * consistent whatever basis is on screen) is recorded only on a manual
+     * fetch — $forceSnapshot set — and only when the value has moved since the
+     * last reading. A passive page view never records one.
      *
      * @return array{
      *   rows: array<int,array{type_id:int,name:string,group_name:?string,quantity:int,unit_price:float,value:float}>,
@@ -166,22 +163,22 @@ class AssetService
     }
 
     /**
-     * Append a Tracker snapshot when the net worth has changed since the last
-     * reading. Automatic captures are throttled to roughly hourly; a manual
-     * refresh ($force) records the change straight away.
+     * Append a Tracker snapshot, but only on a manual fetch ($force) and only
+     * when the net worth has changed since the last reading. Passive page views
+     * never capture a point.
      */
     private function recordSnapshot(Character $character, float $total, float $assetsValue, float $sellOrders, float $escrow, float $wallet, bool $force): void
     {
+        if (! $force) {
+            return;
+        }
+
         $last = AssetSnapshot::where('character_id', $character->character_id)
             ->latest('captured_at')
             ->first();
 
         // Skip flat duplicate points — only record genuine movement.
         if ($last && abs($last->total - $total) < 0.01) {
-            return;
-        }
-
-        if (! $force && $last && $last->captured_at->gt(now()->subMinutes(self::SNAPSHOT_INTERVAL_MINUTES))) {
             return;
         }
 

@@ -31,11 +31,11 @@
                         @endforeach
                     </select>
                 @endif
-                <button wire:click="refreshAssets" wire:loading.attr="disabled"
+                <button wire:click="fetchAssets" wire:loading.attr="disabled"
                         class="inline-flex items-center gap-1.5 rounded-md border border-slate-700/70 px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800 cursor-pointer disabled:opacity-60">
-                    <svg wire:loading.remove wire:target="refreshAssets" class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11A8 8 0 1 0 18.4 16M20 5v6h-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <svg wire:loading wire:target="refreshAssets" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                    Refresh
+                    <svg wire:loading.remove wire:target="fetchAssets" class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11A8 8 0 1 0 18.4 16M20 5v6h-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg wire:loading wire:target="fetchAssets" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    FETCH
                 </button>
             </div>
         </div>
@@ -105,7 +105,7 @@
             <div class="flex items-baseline justify-between">
                 <div>
                     <div class="text-sm font-medium text-slate-300">Net worth over time</div>
-                    <div class="text-[11px] text-slate-500">Recorded ~hourly when it changes, and on every refresh · valued at Jita sell</div>
+                    <div class="text-[11px] text-slate-500">Recorded each time you fetch, when the value has changed · valued at Jita sell</div>
                 </div>
                 <div class="text-[11px] text-slate-500"><span class="num">{{ count($history) }}</span> readings</div>
             </div>
@@ -119,7 +119,7 @@
                 <div class="mt-2 flex min-h-[180px] flex-col items-center justify-center text-center">
                     <svg class="h-8 w-8 text-slate-700" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19V5M4 19h16M7 15l4-5 3 3 5-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <p class="mt-2 text-sm text-slate-500">
-                        {{ count($history) === 1 ? 'First reading captured — check back later or hit Refresh to plot your growth.' : 'No readings yet — they start recording as you view this page.' }}
+                        {{ count($history) === 1 ? 'First reading captured — hit FETCH again later to plot your growth.' : 'No readings yet — hit FETCH to capture your first.' }}
                     </p>
                 </div>
             @endif

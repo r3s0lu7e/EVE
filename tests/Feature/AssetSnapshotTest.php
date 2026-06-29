@@ -27,7 +27,7 @@ class AssetSnapshotTest extends TestCase
             ],
         );
 
-        $result = app(AssetService::class)->valuation($character, 'sell');
+        $result = app(AssetService::class)->valuation($character, 'sell', forceSnapshot: true);
 
         // 100×sell(5)=500 assets + 1000 wallet + 300 sell orders + 200 escrow = 2000.
         $this->assertSame(500.0, $result['assets_value']);
@@ -57,10 +57,27 @@ class AssetSnapshotTest extends TestCase
         );
 
         $service = app(AssetService::class);
-        $service->valuation($character, 'sell');
-        $service->valuation($character, 'sell'); // same value → no new point
+        $service->valuation($character, 'sell', forceSnapshot: true);
+        $service->valuation($character, 'sell', forceSnapshot: true); // same value → no new point
 
         $this->assertSame(1, AssetSnapshot::where('character_id', $character->character_id)->count());
+    }
+
+    public function test_a_passive_page_view_records_no_snapshot(): void
+    {
+        $character = Character::create(['character_id' => 90000033, 'name' => 'Hoarder']);
+
+        $this->fakeEsi(
+            walletBalance: 1000.0,
+            assets: [['type_id' => 34, 'quantity' => 100]],
+            orders: [],
+        );
+
+        // Default (non-forced) valuation is what a page load runs — it must not
+        // capture a Tracker point; only a manual fetch does.
+        app(AssetService::class)->valuation($character, 'sell');
+
+        $this->assertSame(0, AssetSnapshot::where('character_id', $character->character_id)->count());
     }
 
     /**

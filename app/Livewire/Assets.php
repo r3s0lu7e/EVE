@@ -30,7 +30,7 @@ class Assets extends Component
 
     public ?string $message = null;
 
-    /** Set for the single render after a manual refresh, to force a Tracker snapshot. */
+    /** Set for the single render after a manual fetch, to force a Tracker snapshot. */
     public bool $forceSnapshot = false;
 
     public function mount(): void
@@ -57,8 +57,8 @@ class Assets extends Component
         $this->resetPage();
     }
 
-    /** Drop the cached asset list so the next render re-fetches from ESI. */
-    public function refreshAssets(AssetService $assets): void
+    /** Drop the cached asset list so this render re-fetches from ESI and records a snapshot. */
+    public function fetchAssets(AssetService $assets): void
     {
         $character = $this->character();
         if (! $character) {
@@ -69,7 +69,7 @@ class Assets extends Component
 
         $assets->refresh($character);
         $this->forceSnapshot = true;
-        $this->message = 'Assets refreshed from ESI.';
+        $this->message = 'Assets fetched from ESI.';
         $this->resetPage();
     }
 
