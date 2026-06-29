@@ -21,6 +21,8 @@ class ProductList extends Component
     /** Selectable date ranges: key => [label, days-back] (null days = all time). */
     public const PRESETS = [
         'all' => ['All time', null],
+        'today' => ['Today', 0],
+        'yesterday' => ['Yesterday', 1],
         '7d' => ['7 days', 7],
         '30d' => ['30 days', 30],
         '90d' => ['90 days', 90],
@@ -63,9 +65,14 @@ class ProductList extends Component
      */
     private function dateBounds(): ?array
     {
-        $end = now()->endOfDay();
+        $end = match ($this->preset) {
+            'yesterday' => now()->subDay()->endOfDay(),
+            default => now()->endOfDay(),
+        };
 
         $start = match ($this->preset) {
+            'today' => now()->startOfDay(),
+            'yesterday' => now()->subDay()->startOfDay(),
             '7d' => now()->subDays(7)->startOfDay(),
             '30d' => now()->subDays(30)->startOfDay(),
             '90d' => now()->subDays(90)->startOfDay(),
