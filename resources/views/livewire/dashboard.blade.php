@@ -2,7 +2,7 @@
     $isk = fn ($v) => number_format((float) $v, 2);
 @endphp
 
-<div wire:key="dashboard" class="space-y-6">
+<div wire:key="dashboard" class="space-y-6" x-data="{ showCalc: false }">
     {{-- Not logged in --}}
     @unless($loggedIn)
         <div class="rounded-xl border border-eve-400/15 bg-space-850/70 p-8 text-center shadow-glow">
@@ -44,6 +44,11 @@
                     class="inline-flex items-center gap-1.5 rounded-md border border-slate-700/70 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 cursor-pointer">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Export CSV
+            </button>
+            <button type="button" @click="showCalc = true; $nextTick(() => document.getElementById('buyPrice')?.focus())"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-slate-700/70 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 cursor-pointer">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v2M8 18h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                Calculator
             </button>
         </div>
     </div>
@@ -434,4 +439,19 @@
             };
         }
     </script>
+
+    {{-- Calculator modal: reuses the standalone Calculator component verbatim --}}
+    <div x-cloak x-show="showCalc" @keydown.escape.window="showCalc = false"
+         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-space-900/70 p-4 backdrop-blur-sm sm:p-8"
+         x-transition.opacity>
+        <div @click.self="showCalc = false" class="flex min-h-full w-full items-start justify-center">
+            <div class="relative w-full max-w-xl rounded-2xl border border-slate-800 bg-space-850 p-6 shadow-glow">
+                <button type="button" @click="showCalc = false" aria-label="Close calculator"
+                        class="absolute right-3 top-3 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 cursor-pointer">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <livewire:calculator />
+            </div>
+        </div>
+    </div>
 </div>
